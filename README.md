@@ -12,5 +12,7 @@ docker-compose up
 | with optimization |                  |                  |
 
 Spark Applicaton UI (jobs, stages....):  http://localhost:4040
+
 Spark Master UI: http://localhost:8080
+
 HDFS: http://localhost:9870
