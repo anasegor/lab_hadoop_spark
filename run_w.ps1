@@ -13,7 +13,8 @@ docker cp .\spark_app.py spark-master:/tmp/spark_app.py
 
 # Установка зависимостей на spark-master
 docker exec spark-master apk add --no-cache make automake gcc g++ python3-dev linux-headers py3-pip
-docker exec spark-master pip3 install psutil
+docker exec spark-master python3 -m pip install --upgrade pip setuptools wheel
+docker exec spark-master pip3 install numpy psutil
 
 # Запуск Spark-приложений
 docker exec spark-master /spark/bin/spark-submit --master spark://spark-master:7077 /tmp/spark_app.py True

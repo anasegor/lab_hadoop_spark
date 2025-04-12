@@ -27,7 +27,8 @@ docker cp spark_app.py spark-master:/tmp/spark_app.py || error "Не удало�
 
 log "Устанавливаем зависимости в spark-master..."
 docker exec spark-master apk add --no-cache make automake gcc g++ python3-dev linux-headers py3-pip && \
-    pip3 install psutil || error "Не удалось установить зависимости на spark-master"
+docker exec spark-master python3 -m pip install --upgrade pip setuptools wheel && \
+pip3 install psutil || error "Не удалось установить зависимости в spark-master"
 
 log "Запускаем Spark-приложение..."
 docker exec spark-master /spark/bin/spark-submit --master spark://spark-master:7077 /tmp/spark_app.py True && \

@@ -8,6 +8,8 @@ from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.functions import round as spark_round
 from pyspark.sql.functions import min, max, col
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.feature import VectorAssembler, StringIndexer
 
 OPTIMIZED = True if sys.argv[1] == "True" else False
 
@@ -50,9 +52,19 @@ logger.info("Данные загружены: {} строк.".format(df.count())
 # --- Обработка данных ---
 df = df.fillna(0)
 df = df.withColumn("popularity", col("popularity").cast("int"))
+df = df.withColumn("danceability", col("danceability").cast("float"))
+df = df.withColumn("energy", col("energy").cast("float"))
+df = df.withColumn("key", col("key").cast("float"))
+df = df.withColumn("loudness", col("loudness").cast("float"))
+df = df.withColumn("mode", col("mode").cast("float"))
+df = df.withColumn("speechiness", col("speechiness").cast("float"))
+df = df.withColumn("acousticness", col("acousticness").cast("float"))
+df = df.withColumn("liveness", col("liveness").cast("float"))
+df = df.withColumn("valence", col("valence").cast("float"))
+df = df.withColumn("duration_ms", col("duration_ms").cast("float"))
 
-if OPTIMIZED:
-    df = df.repartition(5).cache()
+# if OPTIMIZED:
+#     df = df.repartition(5).cache()
 
 logger.info("Начата фильтрация данных.")
 filtered = df.filter(df["popularity"] > 0)
@@ -63,9 +75,9 @@ logger.info("Начата агрегация.")
 agg = df.groupBy("track_genre").count()
 agg1 = df.groupBy("time_signature").count()
 
-df.show(5)
 agg.show(5)
 agg1.show(5)
+df.show(5)
 
 logger.info("Поиск самых коротких и длинных треков.")
 df1 = df.withColumn("duration_min", spark_round(df["duration_ms"] / 60000, 2))
@@ -92,6 +104,41 @@ normalized = df.withColumn(
     "popularity_norm", (col("popularity") - pop_min) / (pop_max - pop_min)
 )
 normalized.select("popularity", "popularity_norm").show(5)
+
+indexer = StringIndexer(inputCol="track_genre", outputCol="genre")
+df = indexer.fit(df).transform(df)
+numeric_cols = [
+    "popularity",
+    "duration_ms",
+    "danceability",
+    "energy",
+    "key",
+    "loudness",
+    "mode",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
+    "time_signature",
+]
+assembler = VectorAssembler(
+    inputCols=numeric_cols, outputCol="vectorized_data", handleInvalid="skip"
+)
+df = assembler.transform(df)
+
+data_train, data_test = df.randomSplit([0.75, 0.25])
+if OPTIMIZED:
+    data_train.cache()
+    data_train = data_train.repartition(5)
+    data_test.cache()
+    data_test = data_test.repartition(5)
+
+
+model = LogisticRegression(featuresCol="vectorized_data", labelCol="genre")
+model = model.fit(data_train)
+pred_test = model.transform(data_test)
 
 # --- Замер времени и RAM ---
 end_time = time.time()
